@@ -1,0 +1,5 @@
+{
+  "name": "cli-accounts",
+  "owner": { "name": "RiccardoRubini93" },
+  "plugins": [{ "name": "cli-accounts", "source": "./" }]
+}
