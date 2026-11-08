@@ -168,9 +168,9 @@ async function envOf($: EngineInterface, name: string) {
 async function loadAz($: EngineInterface): Promise<Cli> {
   const r = await sh($, ['az', 'account', 'list', '--output', 'json'])
   if (r.code === 127) return missing('az', 'az')
-  const signIn = ['az', 'login']
+  const azSignIn = ['az', 'login']
   if (r.code !== 0) {
-    return /az login|AADSTS|expired/i.test(r.err) ? { id: 'az', label: 'az', status: 'ok', sections: [], needsAuth: true, signIn } : failed('az', 'az', r)
+    return /az login|AADSTS|expired/i.test(r.err) ? { id: 'az', label: 'az', status: 'ok', sections: [], needsAuth: true, signIn: azSignIn } : failed('az', 'az', r)
   }
   const rows = (json(r.out) ?? []) as { id: string; name: string; isDefault: boolean; user?: { name?: string } }[]
   const items: Item[] = rows.map(a => ({
@@ -187,7 +187,7 @@ async function loadAz($: EngineInterface): Promise<Cli> {
     status: 'ok',
     sections: [{ title: 'Subscriptions', items }],
     needsAuth: rows.length === 0,
-    signIn: rows.length === 0 ? signIn : undefined,
+    signIn: rows.length === 0 ? azSignIn : undefined,
   }
 }
 
