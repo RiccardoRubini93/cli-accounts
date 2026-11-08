@@ -240,6 +240,14 @@ async function loadBranch($: EngineInterface) {
 }
 
 // What the band shows for a CLI: the one active identity, short.
+// Keeps the head and the tail of a long name: the end of a context or project often tells them apart.
+function clip(value: string, max: number) {
+  if (value.length <= max) return value
+  const head = Math.ceil((max - 1) / 2)
+
+  return `${value.slice(0, head)}…${value.slice(value.length - (max - 1 - head))}`
+}
+
 function activeOf(cli: Cli | undefined, section?: string) {
   const sections = cli?.sections.filter(s => !section || s.title === section) ?? []
 
@@ -331,37 +339,60 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const list = await read($, clis)
     const name = await read($, branch)
-    if (e.props.hasSurvey || list.length === 0 || (await read($, isBandHidden))) {
+    if (e.props.hasSurvey || list.length === 0) {
       return next(e)
     }
 
     const { Box, Text, Button } = $.ui.resolve(e)
+    if (await read($, isBandHidden)) {
+      return (
+        <Box>
+          <Text dimColor>CLI accounts · </Text>
+          <Button key="show" plain dimColor onPress={() => void update($, isBandHidden, () => false)}>
+            show
+          </Button>
+        </Box>
+      )
+    }
+
     const by = (id: string) => list.find(c => c.id === id && c.status === 'ok')
     const gcloud = by('gcloud')
     const project = gcloud?.sections.find(s => s.title.startsWith('Project:'))?.title.slice(9).trim()
     const chips: { label: string; value?: string; color: string }[] = [
       { label: '⎇', value: name || undefined, color: 'success' },
-      { label: 'gh', value: activeOf(by('gh')), color: 'text' },
-      { label: 'gcloud', value: project && project !== 'none' ? project : activeOf(gcloud, 'Accounts'), color: 'suggestion' },
-      { label: 'k8s', value: activeOf(by('kubectl')), color: 'warning' },
-      { label: 'docker', value: activeOf(by('docker')), color: 'permission' },
-      { label: 'az', value: activeOf(by('az')), color: 'ide' },
-      { label: 'aws', value: activeOf(by('aws')), color: 'warning' },
-      { label: 'dbx', value: activeOf(by('databricks')), color: 'error' },
+      { label: 'gh', value: activeOf(by('gh')), color: '#a371f7' },
+      { label: 'gcloud', value: project && project !== 'none' ? project : activeOf(gcloud, 'Accounts'), color: '#fbbc04' },
+      { label: 'k8s', value: activeOf(by('kubectl')), color: '#4a8cff' },
+      { label: 'docker', value: activeOf(by('docker')), color: '#22d3ee' },
+      { label: 'az', value: activeOf(by('az')), color: '#f472b6' },
+      { label: 'aws', value: activeOf(by('aws')), color: '#ff9900' },
+      { label: 'dbx', value: activeOf(by('databricks')), color: '#ff5a45' },
     ]
 
-    return (
-      <Box>
-        {chips
-          .filter(c => c.value)
-          .map(c => (
-            <Box marginRight={2}>
-              <Text dimColor>{c.label} </Text>
-              <Text bold color={c.color}>
-                {c.value}
-              </Text>
+    // A grid of aligned cells, two columns when the band is wide enough: the labels line
+    // up, long names (a GKE context) are shortened, and a cell never wraps.
+    const width = Math.max(30, e.props.bodyColumns)
+    const cols = width >= 70 ? 2 : 1
+    const cellWidth = Math.floor(width / cols)
+    const labelWidth = 8
+    const cells = chips
+      .filter(c => c.value)
+      .map(c => {
+        const value = c.label === 'k8s' ? c.value!.replace(/^gke_[^_]+_[^_]+_/, '') : c.value!
+
+        return (
+          <Box width={cellWidth}>
+            <Box width={labelWidth}>
+              <Text dimColor>{c.label}</Text>
             </Box>
-          ))}
+            <Text bold color={c.color} wrap="truncate-end">
+              {clip(value, cellWidth - labelWidth - 2)}
+            </Text>
+          </Box>
+        )
+      })
+    cells.push(
+      <Box width={cellWidth}>
         <Button key="open" plain dimColor onPress={() => void $.ui.open({ id: PANE, title: 'CLI accounts' })}>
           switch
         </Button>
@@ -369,6 +400,15 @@ export const register: Register = on => {
         <Button key="hide" plain dimColor onPress={() => void update($, isBandHidden, () => true)}>
           hide
         </Button>
+      </Box>,
+    )
+    const rows = Array.from({ length: Math.ceil(cells.length / cols) }, (_, i) => cells.slice(i * cols, (i + 1) * cols))
+
+    return (
+      <Box flexDirection="column">
+        {rows.map(row => (
+          <Box>{row}</Box>
+        ))}
       </Box>
     )
   })
