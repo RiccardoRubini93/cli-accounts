@@ -1,1 +1,1 @@
-{ "name": "cli-accounts", "version": "0.1.0", "description": "A pane showing the active account and project of gcloud, gh, kubectl and docker, with buttons to switch.", "types": "./types/index.d.ts" }
+{ "name": "cli-accounts", "version": "0.1.0", "description": "A pane showing the active account and project of gcloud, gh, kubectl and docker, with buttons to switch." }
